@@ -14,9 +14,12 @@ def get_data_from_json(plan_json):
     plan = json.loads(plan_json)  # TODO: how to read json file
     plan_id = plan['plan_id']
     geo_json = plan['geo_json_plan']
+    geo_json_file_path = 'geo_json_temp.geojson'
+    with open(geo_json_file_path, 'w') as geo_file:
+        json.dumps(geo_json, geo_file)
     voters_table = plan['likes']
     no_votes = len(voters_table)
-    return plan_id, geo_json, voters_table, no_votes
+    return plan_id, geo_json_file_path, voters_table, no_votes
 
 def get_data_from_geojson_geometry(x):
     ''' Read x: geometry field of geojson and output the area / length as feature'''
@@ -30,8 +33,8 @@ def get_data_from_geojson_geometry(x):
         feature = 1
     return feature
 
-def compile_geo_features(plan_id, geo_json):
-    df = geopandas.read_file(geo_json)
+def compile_geo_features(plan_id, geo_json_file_path):
+    df = geopandas.read_file(geo_json_file_path)
     features = df.geometry.apply(get_data_from_geojson_geometry)
     new_df = pd.concat([df.category, features], axis=1)
     new_df = new_df.groupby(['category']).sum().to_dict()
@@ -62,10 +65,10 @@ def create_table_all_plans(plans_json_list):
     all_plans_df = pd.DataFrame(columns=['plan_id'] + CATEGORIES)
     vote_stats_df = pd.DataFrame()
     for plan in plans_json_list:
-        plan_id, geo_json_file, voters_table, no_votes = get_data_from_json(plan)
+        plan_id, geo_json_file_path, voters_table, no_votes = get_data_from_json(plan)
 
         # geo features
-        plan_dict = compile_geo_features(plan_id, geo_json_file)
+        plan_dict = compile_geo_features(plan_id, geo_json_file_path)
         for n in no_votes:
             all_plans_df = all_plans_df.append(pd.Series(plan_dict), ignore_index=True)
 
