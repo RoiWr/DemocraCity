@@ -10,9 +10,8 @@ CATEGORIES = ['lawn', 'playground', 'bench', 'sports_courts', 'community_garden'
 def call_to_server():  # TODO: call to server to get all json files for all plans in a project
     return plans_json_list
 
-
 def get_data_from_json(plan_json):
-    plan = json.load(plan_json)  # TODO: how to read json file
+    plan = json.loads(plan_json)  # TODO: how to read json file
     plan_id = plan['plan_id']
     geo_json = plan['geo_json_plan']
     voters_table = plan['likes']
@@ -31,13 +30,13 @@ def get_data_from_geojson_geometry(x):
         feature = 1
     return feature
 
-def compile_geo_features(plan_id, geo_json, no_votes):
+def compile_geo_features(plan_id, geo_json):
     df = geopandas.read_file(geo_json)
     features = df.geometry.apply(get_data_from_geojson_geometry)
     new_df = pd.concat([df.category, features], axis=1)
     new_df = new_df.groupby(['category']).sum().to_dict()
     output_dict = new_df['geometry']
-    output_dict.update({'plan_id': int(plan_id), 'no_votes': no_votes})
+    output_dict.update({'plan_id': int(plan_id)})
     return output_dict
 
 def get_voter_stats(plan_id, voter_table):  # TODO: how will voter_table look like
@@ -63,11 +62,12 @@ def create_table_all_plans(plans_json_list):
     all_plans_df = pd.DataFrame(columns=['plan_id'] + CATEGORIES)
     vote_stats_df = pd.DataFrame()
     for plan in plans_json_list:
-        plan_id, geo_json, voters_table, no_votes = get_data_from_json(plan)
+        plan_id, geo_json_file, voters_table, no_votes = get_data_from_json(plan)
 
         # geo features
-        plan_dict = compile_geo_features(plan_id, geo_json, no_votes)
-        all_plans_df = all_plans_df.append(pd.Series(plan_dict), ignore_index=True)
+        plan_dict = compile_geo_features(plan_id, geo_json_file)
+        for n in no_votes:
+            all_plans_df = all_plans_df.append(pd.Series(plan_dict), ignore_index=True)
 
         # voters stats
         vote_stats_dict = get_voter_stats(plan_id, voters_table)
